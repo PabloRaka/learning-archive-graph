@@ -1,0 +1,244 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #76b900;
+  --color-brand-dark: #5a8d00;
+  --color-canvas: #000000;
+  --color-surface-soft: #121212;
+  --color-surface-elevated: #1a1a1a;
+  --color-hairline: #2d2d2d;
+  --color-hairline-strong: #5e5e5e;
+  
+  --color-ink: #ffffff;
+  --color-body: #a7a7a7;
+  --color-mute: #757575;
+  --color-stone: #898989;
+  
+  --font-brand: "Inter", "Arial", sans-serif;
+}
+
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-brand);
+    font-size: 15px;
+    line-height: 1.5;
+    overflow: hidden;
+  }
+  
+  /* Scrollbar styling following technical themes */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-canvas);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-hairline);
+    border-radius: 2px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-brand);
+  }
+}
+
+/* Technical Angular styles based on DESIGN.md */
+.angular-card {
+  background-color: var(--color-surface-soft);
+  border: 1px solid var(--color-hairline);
+  border-radius: 2px;
+}
+
+.angular-card-elevated {
+  background-color: var(--color-surface-elevated);
+  border: 1px solid var(--color-hairline-strong);
+  border-radius: 2px;
+}
+
+.corner-square {
+  width: 8px;
+  height: 8px;
+  background-color: var(--color-brand);
+  position: absolute;
+}
+
+/* Button variants */
+.btn-primary {
+  background-color: var(--color-brand);
+  color: #000000;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 8px 16px;
+  border-radius: 2px;
+  transition: background-color 0.15s ease-in-out;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-brand-dark);
+}
+
+.btn-primary:disabled {
+  background-color: #2d2d2d;
+  color: #757575;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--color-brand);
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 8px 16px;
+  border: 2px solid var(--color-brand);
+  border-radius: 2px;
+  transition: all 0.15s ease-in-out;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-outline:hover {
+  background-color: rgba(118, 185, 0, 0.1);
+}
+
+.btn-outline-secondary {
+  background-color: transparent;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 8px 16px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 2px;
+  transition: all 0.15s ease-in-out;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-outline-secondary:hover {
+  background-color: var(--color-surface-elevated);
+  border-color: var(--color-hairline-strong);
+}
+
+/* Inputs styling */
+.tech-input {
+  background-color: var(--color-canvas);
+  border: 1px solid var(--color-hairline);
+  color: var(--color-ink);
+  padding: 8px 12px;
+  font-size: 0.95rem;
+  border-radius: 2px;
+  transition: border-color 0.15s ease-in-out;
+}
+
+.tech-input:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 1px var(--color-brand);
+}
+
+/* Custom Markdown Content styling for Sidebar */
+.markdown-body {
+  font-size: 0.95rem;
+  color: #d4d4d8;
+}
+
+.markdown-body h1, .markdown-body h2, .markdown-body h3 {
+  color: #ffffff;
+  font-weight: 700;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-body h1 { font-size: 1.4rem; border-bottom: 1px solid var(--color-hairline); padding-bottom: 0.2rem; }
+.markdown-body h2 { font-size: 1.2rem; }
+.markdown-body h3 { font-size: 1.05rem; }
+
+.markdown-body p {
+  margin-bottom: 0.8rem;
+}
+
+.markdown-body ul, .markdown-body ol {
+  margin-bottom: 0.8rem;
+  padding-left: 1.5rem;
+}
+
+.markdown-body ul {
+  list-style-type: square;
+}
+
+.markdown-body ol {
+  list-style-type: decimal;
+}
+
+.markdown-body li {
+  margin-bottom: 0.25rem;
+}
+
+.markdown-body code {
+  background-color: #1a1a1a;
+  color: var(--color-brand);
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-family: monospace;
+  font-size: 0.85em;
+}
+
+.markdown-body pre {
+  background-color: #1a1a1a;
+  padding: 12px;
+  border-radius: 2px;
+  overflow-x: auto;
+  border: 1px solid var(--color-hairline);
+  margin-bottom: 0.8rem;
+}
+
+.markdown-body pre code {
+  background-color: transparent;
+  color: inherit;
+  padding: 0;
+  font-size: 0.9em;
+}
+
+/* --- Knowledge Graph Link Animations --- */
+@keyframes link-flow {
+  from {
+    stroke-dashoffset: 20;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.graph-link {
+  cursor: pointer;
+  transition: stroke 0.2s ease, stroke-opacity 0.2s ease, stroke-width 0.2s ease;
+}
+
+.graph-link:hover {
+  stroke: #76b900 !important;
+  stroke-opacity: 0.85 !important;
+  stroke-width: 2px !important;
+}
+
+.link-flow-active {
+  stroke: #76b900 !important;
+  stroke-width: 2.5px !important;
+  stroke-opacity: 1 !important;
+  stroke-dasharray: 6, 4 !important;
+  animation: link-flow 0.8s linear infinite !important;
+}
+

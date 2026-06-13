@@ -56,7 +56,7 @@ docker compose up -d --build
 ```
 
 - Frontend will be accessible at: `http://localhost:5173`
-- Backend API docs (Swagger) will be accessible at: `http://localhost:8000/docs`
+- Backend API docs (Swagger) will be accessible at: `http://localhost:8085/docs`
 
 ---
 
@@ -77,7 +77,7 @@ venv\Scripts\activate  # On Linux/macOS: source venv/bin/activate
 pip install -r requirements.txt
 
 # Start backend dev server
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --port 8085
 ```
 
 #### 2. Frontend Setup
@@ -129,7 +129,7 @@ Add the following block to your configuration file (typically `%APPDATA%\Claude\
         "/path/to/learning-archive-graph/mcp_server.py"
       ],
       "env": {
-        "API_URL": "http://localhost:8000/api"
+        "API_URL": "http://localhost:8085/api"
       }
     }
   }

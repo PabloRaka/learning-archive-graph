@@ -9,7 +9,7 @@ from mcp.server.fastmcp import FastMCP
 mcp = FastMCP("learning-archive-graph")
 
 # Base API URL of the FastAPI backend (can be configured via environment variable)
-API_URL = os.environ.get("API_URL", "http://localhost:8000/api")
+API_URL = os.environ.get("API_URL", "http://localhost:8085/api")
 
 
 def check_api_error(response: httpx.Response, action_desc: str):

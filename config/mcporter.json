@@ -8,7 +8,7 @@
         "mcp_server.py"
       ],
       "env": {
-        "API_URL": "http://localhost:8000/api"
+        "API_URL": "http://localhost:8085/api"
       }
     }
   }

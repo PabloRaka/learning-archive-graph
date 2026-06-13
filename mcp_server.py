@@ -263,5 +263,11 @@ async def delete_connection(connection_id: str) -> str:
 
 
 if __name__ == "__main__":
-    # FastMCP runs automatically on stdio when run directly
-    mcp.run()
+    import os
+    transport = os.environ.get("MCP_TRANSPORT", "stdio").lower()
+    port = int(os.environ.get("MCP_PORT", "8086"))
+    if transport == "sse":
+        mcp.run(transport="sse", host="0.0.0.0", port=port)
+    else:
+        # FastMCP runs automatically on stdio when run directly
+        mcp.run()

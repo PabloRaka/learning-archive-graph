@@ -26,3 +26,22 @@ services:
     depends_on:
       - backend
     restart: always
+
+  mcp-server:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8086:8086"
+    volumes:
+      - ./backend:/app
+      - /app/venv  # Exclude host Windows virtualenv in container
+      - ./mcp_server.py:/app/mcp_server.py
+    environment:
+      - API_URL=http://backend:8085/api
+      - MCP_TRANSPORT=sse
+      - MCP_PORT=8086
+    command: python mcp_server.py
+    depends_on:
+      - backend
+    restart: always

@@ -143,7 +143,7 @@ OpenClaw automatically discovers local MCP servers configured via **MCPorter**.
 We have placed an auto-discovery configuration at [config/mcporter.json](./config/mcporter.json). Alternatively, register it via the OpenClaw CLI (replace paths accordingly):
 
 ```bash
-openclaw mcp add learning-archive-graph /path/to/learning-archive-graph/backend/venv/bin/python /path/to/learning-archive-graph/mcp_server.py
+openclaw mcp add learning-archive-graph --command "/path/to/learning-archive-graph/backend/venv/bin/python /path/to/learning-archive-graph/mcp_server.py"
 ```
 
 #### 3. Cursor Setup

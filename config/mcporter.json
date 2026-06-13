@@ -3,9 +3,9 @@
   "mcpServers": {
     "learning-archive-graph": {
       "description": "Exposes full CRUD operations for the Daily Learning Archive Graph (categories, learnings, and connections).",
-      "command": "F:/projects/belajar/backend/venv/Scripts/python.exe",
+      "command": "python",
       "args": [
-        "F:/projects/belajar/mcp_server.py"
+        "mcp_server.py"
       ],
       "env": {
         "API_URL": "http://localhost:8000/api"

@@ -23,6 +23,8 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules  # Exclude host node_modules in container
+    environment:
+      - VITE_API_TARGET=http://backend:8085
     depends_on:
       - backend
     restart: always

@@ -9,7 +9,7 @@ import { Sidebar } from './components/Sidebar';
 import { NodeForm } from './components/NodeForm';
 import type { Category, LearningEntry, GraphNode, GraphLink, Connection } from './types';
 
-const API_BASE = 'http://localhost:8085/api';
+const API_BASE = '/api';
 
 function App() {
   // Data States
@@ -63,7 +63,7 @@ function App() {
       setApiConnected(true);
     } catch (err: any) {
       console.error(err);
-      setError('Could not connect to the backend server. Please verify FastAPI is running on http://localhost:8085');
+      setError('Could not connect to the backend server. Please verify the API is running and reachable.');
       setApiConnected(false);
     } finally {
       setLoading(false);

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { 
-  Tag, BookOpen, Calendar, Trash2, Edit2, X, Link as LinkIcon, Plus 
+  Tag, BookOpen, Calendar, Trash2, Edit2, X, Link as LinkIcon, Plus, Maximize2
 } from 'lucide-react';
 import type { Category, LearningEntry, GraphNode, GraphLink } from '../types';
 
@@ -35,12 +35,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [showAddConn, setShowAddConn] = useState(false);
   const [connTargetId, setConnTargetId] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isFullscreenMarkdown, setIsFullscreenMarkdown] = useState(false);
 
-  // Reset delete confirm state when node changes
+  // Reset delete confirm state and fullscreen mode when node changes
   React.useEffect(() => {
     setShowDeleteConfirm(false);
     setShowAddConn(false);
+    setIsFullscreenMarkdown(false);
   }, [selectedNode?.id]);
+
+  // Listen for Escape key to exit fullscreen mode
+  React.useEffect(() => {
+    if (!isFullscreenMarkdown) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsFullscreenMarkdown(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreenMarkdown]);
 
   // Panel only shows when a node is selected
   if (!selectedNode) return null;
@@ -154,11 +168,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Markdown Content for Learning Entry */}
           {!isCategory && learningData && (
-            <div
-              className="markdown-body max-h-64 overflow-y-auto pr-1 pb-4"
-              style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}
-            >
-              <ReactMarkdown>{learningData.content}</ReactMarkdown>
+            <div className="flex flex-col gap-2 pb-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-white/40 flex items-center gap-1.5">
+                  <BookOpen className="h-3.5 w-3.5 text-brand" /> Notes
+                </span>
+                <button
+                  onClick={() => setIsFullscreenMarkdown(true)}
+                  className="text-[10px] text-brand hover:text-brand/80 font-bold uppercase flex items-center gap-1 cursor-pointer transition-colors"
+                >
+                  <Maximize2 className="h-3 w-3" /> Full Screen
+                </button>
+              </div>
+              <div className="markdown-body max-h-64 overflow-y-auto pr-1">
+                <ReactMarkdown>{learningData.content}</ReactMarkdown>
+              </div>
             </div>
           )}
 
@@ -352,6 +376,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Fullscreen Markdown Modal */}
+      {isFullscreenMarkdown && !isCategory && learningData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-canvas/80 backdrop-blur-md pointer-events-auto">
+          <div
+            className="w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden rounded-xl animate-in fade-in zoom-in-95 duration-200"
+            style={{
+              background: 'rgba(10, 10, 12, 0.85)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.08)',
+            }}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-white/10 shrink-0">
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] text-brand font-bold uppercase tracking-widest">
+                  Learning Notes
+                </span>
+                <h2 className="text-xl font-bold text-white leading-tight">
+                  {selectedNode.name}
+                </h2>
+              </div>
+              <button
+                onClick={() => setIsFullscreenMarkdown(false)}
+                className="text-white/40 hover:text-white transition-colors cursor-pointer rounded-full p-2 hover:bg-white/10"
+                title="Close fullscreen view (Esc)"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-8 markdown-body text-zinc-200">
+              <ReactMarkdown>{learningData.content}</ReactMarkdown>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

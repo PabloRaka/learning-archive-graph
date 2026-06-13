@@ -93,6 +93,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
 
   // 3. Render and run D3 force simulation
   useEffect(() => {
+    console.log("DEBUG: Simulation useEffect triggered. Nodes count:", filteredNodes.length);
     if (!svgRef.current || filteredNodes.length === 0) {
       // Clear SVG if empty
       d3.select(svgRef.current).selectAll('*').remove();
@@ -194,14 +195,22 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
 
     // 4. Force Simulation Setup
     // Restore saved positions for existing nodes so they don't fly on data refresh.
-    // New nodes have no saved position — D3 places them near center automatically.
-    filteredNodes.forEach(node => {
+    // New nodes are spread in a wider circle around the center to avoid explosive initial repulsion.
+    filteredNodes.forEach((node, idx) => {
       const saved = nodePositionsRef.current.get(node.id);
       if (saved) {
         node.x = saved.x;
         node.y = saved.y;
-        node.fx = saved.fx;
-        node.fy = saved.fy;
+        // Keep them unlocked during the pre-warming ticks so they can center and adjust correctly
+        node.fx = null;
+        node.fy = null;
+      } else {
+        const angle = idx * (2 * Math.PI / Math.max(1, filteredNodes.length));
+        const radius = 150 + Math.random() * 100;
+        node.x = width / 2 + radius * Math.cos(angle);
+        node.y = height / 2 + radius * Math.sin(angle);
+        node.fx = null;
+        node.fy = null;
       }
     });
 
@@ -211,6 +220,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     const linkDistanceMultiplier = 1 + Math.min(0.6, nodeCount * 0.012);
 
     const simulation = d3.forceSimulation<GraphNode>(filteredNodes)
+      .velocityDecay(0.65) // High damping (friction) for smoother, less bouncy movements
       .force('link', d3.forceLink<GraphNode, GraphLink>(filteredLinks)
         .id(d => d.id)
         .distance(d => {
@@ -232,6 +242,22 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
           return w / 2 + 10;
         }
       }));
+
+    // Pre-warm the simulation fully by running 300 ticks silently before rendering
+    simulation.tick(300);
+    simulation.stop(); // Stop simulation immediately so there is no live movement on load
+
+    // Save pre-warmed positions and fix (pin) all nodes so they are static on load
+    filteredNodes.forEach(d => {
+      d.fx = d.x;
+      d.fy = d.y;
+      nodePositionsRef.current.set(d.id, {
+        x: d.x ?? 0,
+        y: d.y ?? 0,
+        fx: d.fx ?? null,
+        fy: d.fy ?? null,
+      });
+    });
 
     // 5. Draw Links
     const link = zoomGroup.append('g')
@@ -542,6 +568,16 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     });
 
     // 12. Simulation Tick Update
+    const updatePositions = () => {
+      link
+        .attr('x1', d => (d.source as any).x)
+        .attr('y1', d => (d.source as any).y)
+        .attr('x2', d => (d.target as any).x)
+        .attr('y2', d => (d.target as any).y);
+
+      node.attr('transform', d => `translate(${d.x},${d.y})`);
+    };
+
     simulation.on('tick', () => {
       // Save current positions so they survive the next simulation restart
       filteredNodes.forEach(d => {
@@ -553,14 +589,11 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         });
       });
 
-      link
-        .attr('x1', d => (d.source as any).x)
-        .attr('y1', d => (d.source as any).y)
-        .attr('x2', d => (d.target as any).x)
-        .attr('y2', d => (d.target as any).y);
-
-      node.attr('transform', d => `translate(${d.x},${d.y})`);
+      updatePositions();
     });
+
+    // Manually update positions once to render the pre-warmed static layout
+    updatePositions();
 
     return () => {
       simulation.stop();
@@ -649,6 +682,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
 
   // Pan to selected node when it changes
   useEffect(() => {
+    console.log("DEBUG: Pan/zoom useEffect triggered. selectedNode:", selectedNode?.id);
     if (!selectedNode || !svgRef.current) return;
     const matchedNode = filteredLinksRef.current
       ? (nodeSelectionRef.current?.data().find((n: any) => n.id === selectedNode.id) as GraphNode | undefined)

@@ -99,6 +99,17 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       return;
     }
 
+    // Node dimension and padding constants (moved to top for use in collision force)
+    const CAT_PX = 8.5;   // approx px per character at 13px bold
+    const CAT_PAD = 36;   // horizontal padding (leaves room for icon)
+    const CAT_H = 38;
+    const CAT_ICON_W = 28; // width of left icon badge area
+
+    const ENT_PX = 7.5;
+    const ENT_PAD = 28; // padding with dot space
+    const ENT_H = 30;
+    const ENT_DOT_R = 4;
+
     const { width, height } = dimensions;
     const svg = d3.select(svgRef.current);
     svg.selectAll('*').remove();
@@ -194,19 +205,32 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       }
     });
 
+    const nodeCount = filteredNodes.length;
+    // Dynamic charge & distance based on graph size to avoid overcrowding
+    const chargeStrength = -400 - Math.min(600, nodeCount * 15);
+    const linkDistanceMultiplier = 1 + Math.min(0.6, nodeCount * 0.012);
+
     const simulation = d3.forceSimulation<GraphNode>(filteredNodes)
       .force('link', d3.forceLink<GraphNode, GraphLink>(filteredLinks)
         .id(d => d.id)
         .distance(d => {
-          if (d.type === 'category-category') return 180;
-          if (d.type === 'entry-category') return 110;
-          return 80;
+          let baseDist = 80;
+          if (d.type === 'category-category') baseDist = 180;
+          else if (d.type === 'entry-category') baseDist = 120;
+          return baseDist * linkDistanceMultiplier;
         })
       )
-      .force('charge', d3.forceManyBody().strength(-500))
+      .force('charge', d3.forceManyBody().strength(chargeStrength))
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force('collide', d3.forceCollide().radius((d: any) => {
-        return d.type === 'category' ? 80 : 55;
+        // Calculate collision radius dynamically based on name length to prevent overlap
+        if (d.type === 'category') {
+          const w = d.name.length * CAT_PX + CAT_PAD + CAT_ICON_W;
+          return w / 2 + 15;
+        } else {
+          const w = d.name.length * ENT_PX + ENT_PAD;
+          return w / 2 + 10;
+        }
       }));
 
     // 5. Draw Links
@@ -254,11 +278,6 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
 
     // 7. Category nodes — pill card with icon badge
     const categoryNodes = node.filter((d: any) => d.type === 'category');
-
-    const CAT_PX = 8.5;   // approx px per character at 13px bold
-    const CAT_PAD = 36;   // horizontal padding (leaves room for icon)
-    const CAT_H = 38;
-    const CAT_ICON_W = 28; // width of left icon badge area
 
     // Shadow / glow backdrop rect (slightly larger)
     categoryNodes.append('rect')
@@ -330,11 +349,6 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
 
     // 8. Entry nodes — pill badge with colored dot + label
     const entryNodes = node.filter((d: any) => d.type === 'entry');
-
-    const ENT_PX = 7.5;
-    const ENT_PAD = 28; // padding with dot space
-    const ENT_H = 30;
-    const ENT_DOT_R = 4;
 
     // Shadow ring
     entryNodes.append('rect')
@@ -436,24 +450,28 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         return false;
       });
 
-      // Focus Mode Opacities (when focusedNodeId is set)
-      if (focusedNodeId) {
-        // Find focused node neighbors
-        const neighborIds = new Set<string>([focusedNodeId]);
+      // Focus / Selection Mode Opacities (fades out non-neighbors to reduce clutter)
+      const activeFocusNodeId = focusedNodeId || selectedNode?.id;
+      if (activeFocusNodeId) {
+        const neighborIds = new Set<string>([activeFocusNodeId]);
         filteredLinks.forEach(l => {
           const srcId = typeof l.source === 'object' ? l.source.id : l.source;
           const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
-          if (srcId === focusedNodeId) neighborIds.add(tgtId);
-          if (tgtId === focusedNodeId) neighborIds.add(srcId);
+          if (srcId === activeFocusNodeId) neighborIds.add(tgtId);
+          if (tgtId === activeFocusNodeId) neighborIds.add(srcId);
         });
 
+        const isDoubleClicked = !!focusedNodeId;
+        const nodeOpacity = isDoubleClicked ? 0.15 : 0.4;
+        const linkOpacity = isDoubleClicked ? 0.08 : 0.15;
+
         // Fade nodes
-        node.style('opacity', (d: any) => neighborIds.has(d.id) ? 1 : 0.15);
+        node.style('opacity', (d: any) => neighborIds.has(d.id) ? 1 : nodeOpacity);
         // Fade links
         link.style('opacity', (d: any) => {
           const sId = typeof d.source === 'object' ? d.source.id : d.source;
           const tId = typeof d.target === 'object' ? d.target.id : d.target;
-          return neighborIds.has(sId) && neighborIds.has(tId) ? 1 : 0.08;
+          return neighborIds.has(sId) && neighborIds.has(tId) ? 1 : linkOpacity;
         });
       } else {
         node.style('opacity', 1);
@@ -553,7 +571,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredNodes, filteredLinks, dimensions, focusedNodeId]);
 
-  // Highlight effect: runs when selection/focus changes, never rebuilds the simulation
+  // Highlight & Opacity effect: runs when selection/focus changes, never rebuilds the simulation
   useEffect(() => {
     const node = nodeSelectionRef.current;
     const link = linkSelectionRef.current;
@@ -601,7 +619,33 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       }
       return false;
     });
-  }, [selectedNode, selectedLink]);
+
+    // Update opacities for node-fading on selection or double-click focus
+    const activeFocusNodeId = focusedNodeId || selectedNode?.id;
+    if (activeFocusNodeId) {
+      const neighborIds = new Set<string>([activeFocusNodeId]);
+      filteredLinksRef.current.forEach(l => {
+        const srcId = typeof l.source === 'object' ? l.source.id : l.source;
+        const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
+        if (srcId === activeFocusNodeId) neighborIds.add(tgtId);
+        if (tgtId === activeFocusNodeId) neighborIds.add(srcId);
+      });
+
+      const isDoubleClicked = !!focusedNodeId;
+      const nodeOpacity = isDoubleClicked ? 0.15 : 0.4;
+      const linkOpacity = isDoubleClicked ? 0.08 : 0.15;
+
+      node.style('opacity', (d: any) => neighborIds.has(d.id) ? 1 : nodeOpacity);
+      link.style('opacity', (d: any) => {
+        const sId = typeof d.source === 'object' ? d.source.id : d.source;
+        const tId = typeof d.target === 'object' ? d.target.id : d.target;
+        return neighborIds.has(sId) && neighborIds.has(tId) ? 1 : linkOpacity;
+      });
+    } else {
+      node.style('opacity', 1);
+      link.style('opacity', 1);
+    }
+  }, [selectedNode, selectedLink, focusedNodeId]);
 
   // Pan to selected node when it changes
   useEffect(() => {

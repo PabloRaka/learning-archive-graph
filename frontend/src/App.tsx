@@ -238,7 +238,7 @@ function App() {
 
   return (
     <div className="w-full h-screen bg-canvas text-ink flex flex-col font-brand antialiased">
-      {/* NVIDIA Styled Toolbar / Nav */}
+      {/* Styled Toolbar / Nav */}
       <header className="h-[64px] border-b border-hairline bg-surface-soft px-4 flex items-center justify-between gap-3 shrink-0 select-none">
         <div className="flex items-center gap-2.5 shrink-0">
           <Network className="h-5 w-5 text-brand" />

@@ -2,7 +2,7 @@
 
 An interactive web-based dashboard and Model Context Protocol (MCP) registry for documenting daily learnings, linking them to categories, and visualizing connections dynamically.
 
-Built with a premium, technical dark mode aesthetic (styled with NVIDIA-green branding) and featuring full AI assistant integration.
+Built with a premium, technical dark mode aesthetic (styled with a sleek green accent) and featuring full AI assistant integration.
 
 ---
 

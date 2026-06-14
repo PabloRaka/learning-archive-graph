@@ -56,6 +56,45 @@ export const NodeForm: React.FC<NodeFormProps> = ({
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write');
   const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
 
+  // GitHub Code Fetcher States
+  const [showGithubFetch, setShowGithubFetch] = useState(false);
+  const [githubRepoUrl, setGithubRepoUrl] = useState('');
+  const [githubFilePath, setGithubFilePath] = useState('');
+  const [githubBranch, setGithubBranch] = useState('main');
+  const [githubLoading, setGithubLoading] = useState(false);
+
+  const handleFetchGithubCode = async () => {
+    if (!githubRepoUrl.trim() || !githubFilePath.trim()) return;
+    setGithubLoading(true);
+    try {
+      const res = await fetch('/api/code-fetch/github', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          repo_url: githubRepoUrl.trim(),
+          file_path: githubFilePath.trim(),
+          branch: githubBranch.trim() || 'main'
+        })
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json();
+        throw new Error(errJson.detail || 'Failed to fetch code from GitHub');
+      }
+
+      const data = await res.json();
+      setLearnContent(prev => {
+        const spacer = prev.trim() === '' ? '' : '\n\n';
+        return prev + spacer + data.formatted_content;
+      });
+      setShowGithubFetch(false);
+    } catch (err: any) {
+      alert(`GitHub Fetch Error: ${err.message}`);
+    } finally {
+      setGithubLoading(false);
+    }
+  };
+
   const insertMarkdown = (syntaxBefore: string, syntaxAfter: string = '') => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -258,32 +297,100 @@ export const NodeForm: React.FC<NodeFormProps> = ({
                     Notes (Markdown Supported)
                   </label>
                   
-                  {/* Tab Switcher */}
-                  <div className="flex items-center gap-1 bg-canvas p-0.5 rounded border border-hairline">
+                  {/* Tab Switcher & GitHub Puller button */}
+                  <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setActiveTab('write')}
-                      className={`flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase rounded-[2px] transition-all cursor-pointer ${
-                        activeTab === 'write'
-                          ? 'bg-hairline text-white'
-                          : 'text-mute hover:text-white'
+                      onClick={() => setShowGithubFetch(!showGithubFetch)}
+                      className={`flex items-center gap-1.5 px-2 py-0.5 text-[9px] font-bold uppercase border rounded-[2px] transition-all cursor-pointer ${
+                        showGithubFetch
+                          ? 'bg-purple-950/40 text-purple-300 border-purple-500/50 shadow-[0_0_8px_rgba(168,85,247,0.2)]'
+                          : 'border-hairline text-mute hover:text-white hover:border-zinc-500'
                       }`}
                     >
-                      <Edit3 className="h-3 w-3" /> Write
+                      <span className="font-mono text-[9px] font-bold text-purple-400">GH</span> Pull Code
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('preview')}
-                      className={`flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase rounded-[2px] transition-all cursor-pointer ${
-                        activeTab === 'preview'
-                          ? 'bg-hairline text-white'
-                          : 'text-mute hover:text-white'
-                      }`}
-                    >
-                      <Eye className="h-3 w-3" /> Preview
-                    </button>
+
+                    <div className="flex items-center gap-1 bg-canvas p-0.5 rounded border border-hairline">
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('write')}
+                        className={`flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-[2px] transition-all cursor-pointer ${
+                          activeTab === 'write'
+                            ? 'bg-hairline text-white'
+                            : 'text-mute hover:text-white'
+                        }`}
+                      >
+                        <Edit3 className="h-3 w-3" /> Write
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('preview')}
+                        className={`flex items-center gap-1 px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-[2px] transition-all cursor-pointer ${
+                          activeTab === 'preview'
+                            ? 'bg-hairline text-white'
+                            : 'text-mute hover:text-white'
+                        }`}
+                      >
+                        <Eye className="h-3 w-3" /> Preview
+                      </button>
+                    </div>
                   </div>
                 </div>
+
+                {/* Collapsible GitHub Panel */}
+                {showGithubFetch && (
+                  <div className="flex flex-col gap-2.5 p-3 bg-canvas/30 border border-purple-500/30 rounded-[2px] text-xs">
+                    <div className="flex items-center justify-between border-b border-purple-500/10 pb-1">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300 flex items-center gap-1">
+                        GitHub Code Puller
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] font-bold uppercase tracking-wider text-mute">Repository (owner/repo)</label>
+                        <input
+                          type="text"
+                          placeholder="octocat/Hello-World"
+                          className="tech-input py-1 text-xs"
+                          value={githubRepoUrl}
+                          onChange={(e) => setGithubRepoUrl(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] font-bold uppercase tracking-wider text-mute">File Path</label>
+                        <input
+                          type="text"
+                          placeholder="src/index.js"
+                          className="tech-input py-1 text-xs"
+                          value={githubFilePath}
+                          onChange={(e) => setGithubFilePath(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] font-bold uppercase tracking-wider text-mute">Branch</label>
+                        <input
+                          type="text"
+                          placeholder="main"
+                          className="tech-input py-1 text-xs"
+                          value={githubBranch}
+                          onChange={(e) => setGithubBranch(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 mt-1">
+                      <button
+                        type="button"
+                        onClick={handleFetchGithubCode}
+                        disabled={githubLoading || !githubRepoUrl.trim() || !githubFilePath.trim()}
+                        className="btn-primary text-[10px] px-3 py-1 font-bold uppercase cursor-pointer"
+                        style={{ padding: '3px 8px', fontSize: '10px' }}
+                      >
+                        {githubLoading ? 'Fetching...' : 'Fetch & Append'}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {activeTab === 'write' ? (
                   <div className="flex flex-col gap-1.5">

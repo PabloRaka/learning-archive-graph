@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { 
   Network, CheckCircle2, AlertTriangle, RefreshCw, Database, RotateCcw,
-  Search, Plus, Filter, Tag, BookOpen
+  Search, Plus, Filter, Tag, BookOpen, Sparkles
 } from 'lucide-react';
 
 import { KnowledgeGraph } from './components/KnowledgeGraph';
@@ -28,6 +28,34 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCategories, setShowCategories] = useState(true);
   const [showLearnings, setShowLearnings] = useState(true);
+  const [searchMode, setSearchMode] = useState<'keyword' | 'semantic'>('keyword');
+  const [semanticMatches, setSemanticMatches] = useState<string[]>([]);
+  const [semanticLoading, setSemanticLoading] = useState(false);
+
+  // Debounced semantic search
+  useEffect(() => {
+    if (searchMode !== 'semantic' || searchQuery.trim() === '') {
+      setSemanticMatches([]);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setSemanticLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(searchQuery)}&limit=12`);
+        if (res.ok) {
+          const matchedNodes = await res.json();
+          setSemanticMatches(matchedNodes.map((n: any) => n.id));
+        }
+      } catch (err) {
+        console.error("Semantic search failed:", err);
+      } finally {
+        setSemanticLoading(false);
+      }
+    }, 350); // 350ms debounce
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, searchMode]);
 
   // Status States
   const [loading, setLoading] = useState(true);
@@ -249,17 +277,41 @@ function App() {
 
         {/* Center: Search & Filter & Add actions */}
         <div className="flex-1 flex items-center justify-center gap-4 max-w-3xl">
-          {/* Search Input */}
-          <div className="relative w-48">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-mute" />
-            <input
-              type="text"
-              placeholder="Search nodes..."
-              className="w-full tech-input pl-9"
-              style={{ padding: '5px 10px 5px 32px', fontSize: '11px' }}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          {/* Search Input with Semantic Toggle */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="relative w-52">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-mute" />
+              <input
+                type="text"
+                placeholder={searchMode === 'semantic' ? "Search concepts (AI)..." : "Search nodes..."}
+                className={`w-full tech-input pl-9 pr-8 transition-all duration-300 ${
+                  searchMode === 'semantic' 
+                    ? 'border-purple-500/50 focus:border-purple-400 focus:ring-1 focus:ring-purple-500/30 text-purple-200' 
+                    : ''
+                }`}
+                style={{ padding: '5px 26px 5px 32px', fontSize: '11px' }}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {semanticLoading && (
+                <RefreshCw className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-purple-400 animate-spin" />
+              )}
+            </div>
+
+            <button
+              onClick={() => {
+                setSearchMode(searchMode === 'keyword' ? 'semantic' : 'keyword');
+                setSearchQuery(''); // clear query on mode switch
+              }}
+              className={`flex items-center justify-center p-1.5 rounded-[2px] border transition-all cursor-pointer h-[26px] w-[26px] ${
+                searchMode === 'semantic'
+                  ? 'bg-purple-950/40 text-purple-300 border-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.25)]'
+                  : 'border-hairline text-mute hover:text-white hover:border-zinc-500'
+              }`}
+              title={searchMode === 'semantic' ? "Switch to Keyword Search" : "Switch to Semantic Search (AI)"}
+            >
+              <Sparkles className={`h-3.5 w-3.5 ${searchMode === 'semantic' ? 'animate-pulse text-purple-400' : ''}`} />
+            </button>
           </div>
 
           {/* Filter Toggles */}
@@ -387,6 +439,8 @@ function App() {
               showCategories={showCategories}
               showLearnings={showLearnings}
               resetZoomRef={resetZoomRef}
+              searchMode={searchMode}
+              semanticMatches={semanticMatches}
             />
 
             {/* Glass overlay panel — appears on node click */}

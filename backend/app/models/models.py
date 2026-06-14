@@ -10,6 +10,7 @@ class CategoryBase(SQLModel):
 class Category(CategoryBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    embedding: Optional[str] = Field(default=None, nullable=True)  # Store JSON list of float vectors
 
     # Relationships
     learnings: List["LearningEntry"] = Relationship(back_populates="primary_category")
@@ -21,6 +22,16 @@ class CategoryRead(CategoryBase):
     id: UUID
     created_at: datetime
 
+class ConnectedNodeInfo(SQLModel):
+    connection_id: UUID
+    node_id: UUID
+    name: str
+    type: str  # "category" or "entry"
+    connection_type: str  # "category-category", "entry-category", "entry-entry"
+
+class CategoryReadWithConnections(CategoryRead):
+    connections: List[ConnectedNodeInfo] = []
+
 
 class LearningEntryBase(SQLModel):
     title: str = Field(index=True)
@@ -31,6 +42,7 @@ class LearningEntryBase(SQLModel):
 class LearningEntry(LearningEntryBase, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+    embedding: Optional[str] = Field(default=None, nullable=True)  # Store JSON list of float vectors
 
     # Relationships
     primary_category: Optional[Category] = Relationship(back_populates="learnings")
@@ -41,6 +53,9 @@ class LearningEntryCreate(LearningEntryBase):
 class LearningEntryRead(LearningEntryBase):
     id: UUID
     created_at: datetime
+
+class LearningEntryReadWithConnections(LearningEntryRead):
+    connections: List[ConnectedNodeInfo] = []
 
 
 class ConnectionBase(SQLModel):
@@ -67,6 +82,7 @@ class GraphNode(SQLModel):
     type: str  # "category" or "entry"
     category_name: Optional[str] = None
     date: Optional[str] = None
+    similarity: Optional[float] = None
 
 class GraphLink(SQLModel):
     source: UUID

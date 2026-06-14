@@ -11,6 +11,8 @@ interface KnowledgeGraphProps {
   showCategories: boolean;
   showLearnings: boolean;
   resetZoomRef?: React.MutableRefObject<(() => void) | null>;
+  searchMode: 'keyword' | 'semantic';
+  semanticMatches: string[];
 }
 
 export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
@@ -21,6 +23,8 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
   showCategories,
   showLearnings,
   resetZoomRef,
+  searchMode,
+  semanticMatches,
 }) => {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -70,7 +74,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       if (node.type === 'category' && !showCategories) return;
       if (node.type === 'entry' && !showLearnings) return;
 
-      if (searchQuery.trim() !== '') {
+      if (searchMode === 'keyword' && searchQuery.trim() !== '') {
         const query = searchQuery.toLowerCase();
         const nameMatch = node.name.toLowerCase().includes(query);
         const categoryMatch = node.category_name?.toLowerCase().includes(query);
@@ -90,7 +94,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     });
 
     return { filteredNodes: nodes, filteredLinks: links };
-  }, [data, searchQuery, showCategories, showLearnings]);
+  }, [data, searchQuery, searchMode, showCategories, showLearnings]);
 
   // 3. Render and run D3 force simulation
   useEffect(() => {
@@ -431,10 +435,12 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         .attr('stroke', (d: any) => getCategoryColor(d.name))
         .attr('stroke-width', (d: any) => {
           if (selectedNode && d.id === selectedNode.id) return 2.5;
+          if (searchMode === 'semantic' && searchQuery.trim() !== '' && semanticMatches.includes(d.id)) return 2.2;
           return 1.5;
         })
         .attr('filter', (d: any) => {
           if (selectedNode && d.id === selectedNode.id) return 'url(#node-glow)';
+          if (searchMode === 'semantic' && searchQuery.trim() !== '' && semanticMatches.includes(d.id)) return 'url(#node-glow)';
           return 'url(#cat-glow)';
         });
 
@@ -442,14 +448,17 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       node.selectAll('rect.entry-circle')
         .attr('stroke', (d: any) => {
           if (selectedNode && d.id === selectedNode.id) return getCategoryColor(d.category_name);
+          if (searchMode === 'semantic' && searchQuery.trim() !== '' && semanticMatches.includes(d.id)) return getCategoryColor(d.category_name);
           return '#3a3a42';
         })
         .attr('stroke-width', (d: any) => {
           if (selectedNode && d.id === selectedNode.id) return 2;
+          if (searchMode === 'semantic' && searchQuery.trim() !== '' && semanticMatches.includes(d.id)) return 1.8;
           return 1.5;
         })
         .attr('filter', (d: any) => {
           if (selectedNode && d.id === selectedNode.id) return 'url(#node-glow)';
+          if (searchMode === 'semantic' && searchQuery.trim() !== '' && semanticMatches.includes(d.id)) return 'url(#node-glow)';
           return null;
         });
 
@@ -496,6 +505,14 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
           const sId = typeof d.source === 'object' ? d.source.id : d.source;
           const tId = typeof d.target === 'object' ? d.target.id : d.target;
           return neighborIds.has(sId) && neighborIds.has(tId) ? 1 : linkOpacity;
+        });
+      } else if (searchMode === 'semantic' && searchQuery.trim() !== '') {
+        const matchSet = new Set(semanticMatches);
+        node.style('opacity', (d: any) => matchSet.has(d.id) ? 1 : 0.15);
+        link.style('opacity', (d: any) => {
+          const sId = typeof d.source === 'object' ? d.source.id : d.source;
+          const tId = typeof d.target === 'object' ? d.target.id : d.target;
+          return matchSet.has(sId) && matchSet.has(tId) ? 0.8 : 0.08;
         });
       } else {
         node.style('opacity', 1);
@@ -600,7 +617,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     // They are handled in a separate useEffect below to avoid restarting the simulation
     // (which would reset dragged node positions) on every selection change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredNodes, filteredLinks, dimensions, focusedNodeId]);
+  }, [filteredNodes, filteredLinks, dimensions, focusedNodeId, searchMode, semanticMatches, searchQuery]);
 
   // Highlight & Opacity effect: runs when selection/focus changes, never rebuilds the simulation
   useEffect(() => {
@@ -613,10 +630,12 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       .attr('stroke', (d: any) => getCategoryColor(d.name))
       .attr('stroke-width', (d: any) => {
         if (selectedNode && d.id === selectedNode.id) return 2.5;
+        if (searchMode === 'semantic' && searchQuery.trim() !== '' && semanticMatches.includes(d.id)) return 2.2;
         return 1.5;
       })
       .attr('filter', (d: any) => {
         if (selectedNode && d.id === selectedNode.id) return 'url(#node-glow)';
+        if (searchMode === 'semantic' && searchQuery.trim() !== '' && semanticMatches.includes(d.id)) return 'url(#node-glow)';
         return 'url(#cat-glow)';
       });
 
@@ -624,14 +643,17 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     node.selectAll('rect.entry-circle')
       .attr('stroke', (d: any) => {
         if (selectedNode && d.id === selectedNode.id) return getCategoryColor(d.category_name);
+        if (searchMode === 'semantic' && searchQuery.trim() !== '' && semanticMatches.includes(d.id)) return getCategoryColor(d.category_name);
         return '#3a3a42';
       })
       .attr('stroke-width', (d: any) => {
         if (selectedNode && d.id === selectedNode.id) return 2;
+        if (searchMode === 'semantic' && searchQuery.trim() !== '' && semanticMatches.includes(d.id)) return 1.8;
         return 1.5;
       })
       .attr('filter', (d: any) => {
         if (selectedNode && d.id === selectedNode.id) return 'url(#node-glow)';
+        if (searchMode === 'semantic' && searchQuery.trim() !== '' && semanticMatches.includes(d.id)) return 'url(#node-glow)';
         return null;
       });
 
@@ -648,7 +670,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       return false;
     });
 
-    // Update opacities for node-fading on selection or double-click focus
+    // Update opacities for node-fading on selection or double-click focus or semantic search
     const activeFocusNodeId = focusedNodeId || selectedNode?.id;
     if (activeFocusNodeId) {
       const neighborIds = new Set<string>([activeFocusNodeId]);
@@ -669,11 +691,19 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
         const tId = typeof d.target === 'object' ? d.target.id : d.target;
         return neighborIds.has(sId) && neighborIds.has(tId) ? 1 : linkOpacity;
       });
+    } else if (searchMode === 'semantic' && searchQuery.trim() !== '') {
+      const matchSet = new Set(semanticMatches);
+      node.style('opacity', (d: any) => matchSet.has(d.id) ? 1 : 0.15);
+      link.style('opacity', (d: any) => {
+        const sId = typeof d.source === 'object' ? d.source.id : d.source;
+        const tId = typeof d.target === 'object' ? d.target.id : d.target;
+        return matchSet.has(sId) && matchSet.has(tId) ? 0.8 : 0.08;
+      });
     } else {
       node.style('opacity', 1);
       link.style('opacity', 1);
     }
-  }, [selectedNode, selectedLink, focusedNodeId]);
+  }, [selectedNode, selectedLink, focusedNodeId, searchMode, semanticMatches, searchQuery]);
 
   // Pan to selected node when it changes
   useEffect(() => {

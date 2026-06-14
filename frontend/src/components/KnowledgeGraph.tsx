@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import * as d3 from 'd3';
 import type { GraphNode, GraphLink, GraphData } from '../types';
+import { getCategoryColor } from '../colors';
 
 interface KnowledgeGraphProps {
   data: GraphData;
@@ -314,7 +315,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       .attr('width', (d: any) => d.name.length * CAT_PX + CAT_PAD + CAT_ICON_W + 4)
       .attr('height', CAT_H + 4)
       .attr('fill', 'none')
-      .attr('stroke', '#76b900')
+      .attr('stroke', (d: any) => getCategoryColor(d.name))
       .attr('stroke-width', 1)
       .attr('stroke-opacity', 0.2)
       .attr('filter', 'url(#cat-glow)');
@@ -328,7 +329,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       .attr('width', (d: any) => d.name.length * CAT_PX + CAT_PAD + CAT_ICON_W)
       .attr('height', CAT_H)
       .attr('fill', 'url(#cat-grad)')
-      .attr('stroke', '#76b900')
+      .attr('stroke', (d: any) => getCategoryColor(d.name))
       .attr('stroke-width', 1.5)
       .attr('class', 'category-box');
 
@@ -340,7 +341,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       .attr('y', -CAT_H / 2)
       .attr('width', CAT_ICON_W)
       .attr('height', CAT_H)
-      .attr('fill', '#76b900')
+      .attr('fill', (d: any) => getCategoryColor(d.name))
       .attr('fill-opacity', 0.15);
 
     // Clip the left strip so it fits inside the rounded rect border
@@ -349,7 +350,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       .attr('y', -CAT_H / 2)
       .attr('width', 1)
       .attr('height', CAT_H)
-      .attr('fill', '#76b900')
+      .attr('fill', (d: any) => getCategoryColor(d.name))
       .attr('fill-opacity', 0.3);
 
     // Icon dot inside left badge
@@ -357,7 +358,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       .attr('cx', (d: any) => -(d.name.length * CAT_PX + CAT_PAD + CAT_ICON_W) / 2 + CAT_ICON_W / 2)
       .attr('cy', 0)
       .attr('r', 5)
-      .attr('fill', '#76b900')
+      .attr('fill', (d: any) => getCategoryColor(d.name))
       .attr('fill-opacity', 0.9);
 
     // Category label
@@ -365,7 +366,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       .text((d: any) => d.name)
       .attr('x', (d: any) => -(d.name.length * CAT_PX + CAT_PAD + CAT_ICON_W) / 2 + CAT_ICON_W + 10)
       .attr('dy', '0.35em')
-      .attr('fill', '#a3e635')
+      .attr('fill', (d: any) => getCategoryColor(d.name))
       .attr('font-size', '13px')
       .attr('font-weight', '700')
       .attr('font-family', 'Inter, Arial, sans-serif')
@@ -407,7 +408,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       .attr('cx', (d: any) => -(d.name.length * ENT_PX + ENT_PAD) / 2 + 14)
       .attr('cy', 0)
       .attr('r', ENT_DOT_R)
-      .attr('fill', '#60a5fa')
+      .attr('fill', (d: any) => getCategoryColor(d.category_name))
       .attr('fill-opacity', 0.85)
       .style('pointer-events', 'none');
 
@@ -427,10 +428,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     const updateHighlights = () => {
       // Category node: highlight border + glow
       node.selectAll('rect.category-box')
-        .attr('stroke', (d: any) => {
-          if (selectedNode && d.id === selectedNode.id) return '#a3e635';
-          return '#76b900';
-        })
+        .attr('stroke', (d: any) => getCategoryColor(d.name))
         .attr('stroke-width', (d: any) => {
           if (selectedNode && d.id === selectedNode.id) return 2.5;
           return 1.5;
@@ -443,7 +441,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
       // Entry node pill: highlight border
       node.selectAll('rect.entry-circle')
         .attr('stroke', (d: any) => {
-          if (selectedNode && d.id === selectedNode.id) return '#76b900';
+          if (selectedNode && d.id === selectedNode.id) return getCategoryColor(d.category_name);
           return '#3a3a42';
         })
         .attr('stroke-width', (d: any) => {
@@ -612,10 +610,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
 
     // Category node: highlight border + glow
     node.selectAll('rect.category-box')
-      .attr('stroke', (d: any) => {
-        if (selectedNode && d.id === selectedNode.id) return '#a3e635';
-        return '#76b900';
-      })
+      .attr('stroke', (d: any) => getCategoryColor(d.name))
       .attr('stroke-width', (d: any) => {
         if (selectedNode && d.id === selectedNode.id) return 2.5;
         return 1.5;
@@ -628,7 +623,7 @@ export const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({
     // Entry node pill: highlight border
     node.selectAll('rect.entry-circle')
       .attr('stroke', (d: any) => {
-        if (selectedNode && d.id === selectedNode.id) return '#76b900';
+        if (selectedNode && d.id === selectedNode.id) return getCategoryColor(d.category_name);
         return '#3a3a42';
       })
       .attr('stroke-width', (d: any) => {

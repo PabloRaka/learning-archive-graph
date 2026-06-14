@@ -1,20 +1,44 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Tag, BookOpen, Calendar, HelpCircle } from 'lucide-react';
-import type { Category, LearningEntry } from '../types';
+import ReactMarkdown from 'react-markdown';
+import { 
+  X, Save, Tag, BookOpen, Calendar, HelpCircle,
+  Bold, Italic, Code, Link as LinkIcon, List, Heading, Eye, Edit3
+} from 'lucide-react';
+import type { Category, LearningEntry, Connection } from '../types';
+import { getCategoryColor } from '../colors';
+import hljs from 'highlight.js';
 
 interface NodeFormProps {
   type: 'category' | 'learning';
   categories: Category[];
   learnings: LearningEntry[];
+  connections?: Connection[];
   editingEntry?: LearningEntry | null;
   onSave: (data: any) => void;
   onCancel: () => void;
 }
 
+const markdownComponents = {
+  code({ children, className, ...rest }: React.ComponentPropsWithoutRef<'code'>) {
+    const match = /language-(\w+)/.exec(className || '');
+    const codeString = String(children).replace(/\n$/, '');
+    if (match) {
+      try {
+        const highlighted = hljs.highlight(codeString, { language: match[1] }).value;
+        return <code className={`${className} hljs`} dangerouslySetInnerHTML={{ __html: highlighted }} />;
+      } catch {
+        // Fallback
+      }
+    }
+    return <code className={className} {...rest}>{children}</code>;
+  }
+};
+
 export const NodeForm: React.FC<NodeFormProps> = ({
   type,
   categories,
   learnings,
+  connections = [],
   editingEntry,
   onSave,
   onCancel,
@@ -29,6 +53,31 @@ export const NodeForm: React.FC<NodeFormProps> = ({
   const [connectedNodeIds, setConnectedNodeIds] = useState<string[]>([]);
   const [searchFilter, setSearchFilter] = useState('');
 
+  const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write');
+  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+
+  const insertMarkdown = (syntaxBefore: string, syntaxAfter: string = '') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selectedText = text.substring(start, end);
+    const replacement = syntaxBefore + selectedText + syntaxAfter;
+
+    setLearnContent(text.substring(0, start) + replacement + text.substring(end));
+
+    // Refocus and set cursor selection
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(
+        start + syntaxBefore.length,
+        start + syntaxBefore.length + selectedText.length
+      );
+    }, 0);
+  };
+
   useEffect(() => {
     if (editingEntry) {
       setLearnTitle(editingEntry.title);
@@ -36,20 +85,20 @@ export const NodeForm: React.FC<NodeFormProps> = ({
       setLearnDate(editingEntry.date);
       setLearnPrimaryCatId(editingEntry.primary_category_id);
       
-      // Let's load existing connections for editing.
-      // We will let the parent component pass connections, or we can fetch/extract it.
-      // Wait, we can pass it or fetch it in App.tsx. We will have `editingConnections` or we can let App.tsx manage it.
-      // To keep it simple, we will set them through editingEntry's connections if passed, 
-      // or we can allow the user to select them.
-      // Let's add a prop or let the user choose them.
-      // Wait! Let's pass the pre-existing connections in editingEntry as an additional parameter, or let the parent pass `connectedNodeIds`!
-      // Let's pass `initialConnectedNodeIds` to make it super robust!
+      // Load existing connections for editing
+      const initialConns = connections
+        .filter(c => c.source_id === editingEntry.id || c.target_id === editingEntry.id)
+        .map(c => c.source_id === editingEntry.id ? c.target_id : c.source_id);
+      
+      // Filter out the primary category connection, since it's added automatically
+      setConnectedNodeIds(initialConns.filter(id => id !== editingEntry.primary_category_id));
     } else {
       if (categories.length > 0) {
         setLearnPrimaryCatId(categories[0].id);
       }
+      setConnectedNodeIds([]);
     }
-  }, [editingEntry, categories]);
+  }, [editingEntry, categories, connections]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,14 +128,19 @@ export const NodeForm: React.FC<NodeFormProps> = ({
     }
   };
 
-  // Filter possible nodes to link to:
-  // Cannot link a learning entry to itself.
-  // The primary category is automatically linked, so hide it from the manual connections list.
   const eligibleNodes = [
-    ...categories.map(c => ({ id: c.id, name: c.name, type: 'category' as const })),
+    ...categories.map(c => ({ id: c.id, name: c.name, type: 'category' as const, categoryName: c.name })),
     ...learnings
       .filter(l => !editingEntry || l.id !== editingEntry.id)
-      .map(l => ({ id: l.id, name: l.title, type: 'entry' as const })),
+      .map(l => {
+        const cat = categories.find(c => c.id === l.primary_category_id);
+        return {
+          id: l.id,
+          name: l.title,
+          type: 'entry' as const,
+          categoryName: cat ? cat.name : 'Unknown'
+        };
+      }),
   ].filter(
     node =>
       node.id !== learnPrimaryCatId &&
@@ -198,18 +252,124 @@ export const NodeForm: React.FC<NodeFormProps> = ({
               </div>
 
               {/* Content (Markdown Notes) */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-bold uppercase tracking-wider text-mute">
-                  Notes (Markdown Supported)
-                </label>
-                <textarea
-                  placeholder="Explain what you learned, write code snippets, key rules, etc..."
-                  rows={6}
-                  className="tech-input font-mono text-sm resize-y"
-                  value={learnContent}
-                  onChange={(e) => setLearnContent(e.target.value)}
-                  required
-                />
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between border-b border-hairline pb-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-mute">
+                    Notes (Markdown Supported)
+                  </label>
+                  
+                  {/* Tab Switcher */}
+                  <div className="flex items-center gap-1 bg-canvas p-0.5 rounded border border-hairline">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('write')}
+                      className={`flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase rounded-[2px] transition-all cursor-pointer ${
+                        activeTab === 'write'
+                          ? 'bg-hairline text-white'
+                          : 'text-mute hover:text-white'
+                      }`}
+                    >
+                      <Edit3 className="h-3 w-3" /> Write
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('preview')}
+                      className={`flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase rounded-[2px] transition-all cursor-pointer ${
+                        activeTab === 'preview'
+                          ? 'bg-hairline text-white'
+                          : 'text-mute hover:text-white'
+                      }`}
+                    >
+                      <Eye className="h-3 w-3" /> Preview
+                    </button>
+                  </div>
+                </div>
+
+                {activeTab === 'write' ? (
+                  <div className="flex flex-col gap-1.5">
+                    {/* Toolbar */}
+                    <div className="flex items-center gap-1 p-1 bg-canvas rounded border border-hairline shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => insertMarkdown('**', '**')}
+                        className="p-1 hover:bg-hairline rounded text-mute hover:text-brand transition-colors cursor-pointer flex items-center justify-center"
+                        title="Bold"
+                      >
+                        <Bold className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertMarkdown('*', '*')}
+                        className="p-1 hover:bg-hairline rounded text-mute hover:text-brand transition-colors cursor-pointer flex items-center justify-center"
+                        title="Italic"
+                      >
+                        <Italic className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertMarkdown('### ')}
+                        className="p-1 hover:bg-hairline rounded text-mute hover:text-brand transition-colors cursor-pointer flex items-center justify-center"
+                        title="Heading"
+                      >
+                        <Heading className="h-3.5 w-3.5" />
+                      </button>
+                      <div className="w-[1px] h-4 bg-hairline mx-1" />
+                      <button
+                        type="button"
+                        onClick={() => insertMarkdown('`', '`')}
+                        className="p-1 hover:bg-hairline rounded text-mute hover:text-brand transition-colors cursor-pointer flex items-center justify-center"
+                        title="Inline Code"
+                      >
+                        <Code className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertMarkdown('```\n', '\n```')}
+                        className="p-1 hover:bg-hairline rounded text-mute hover:text-brand transition-colors cursor-pointer flex items-center justify-center"
+                        title="Code Block"
+                      >
+                        <span className="text-[10px] font-bold font-mono px-0.5 leading-none">```</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertMarkdown('[', '](url)')}
+                        className="p-1 hover:bg-hairline rounded text-mute hover:text-brand transition-colors cursor-pointer flex items-center justify-center"
+                        title="Link"
+                      >
+                        <LinkIcon className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => insertMarkdown('- ')}
+                        className="p-1 hover:bg-hairline rounded text-mute hover:text-brand transition-colors cursor-pointer flex items-center justify-center"
+                        title="List"
+                      >
+                        <List className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    <textarea
+                      ref={textareaRef}
+                      placeholder="Explain what you learned, write code snippets, key rules, etc..."
+                      rows={6}
+                      className="tech-input font-mono text-xs resize-y w-full bg-canvas/40"
+                      value={learnContent}
+                      onChange={(e) => setLearnContent(e.target.value)}
+                      required
+                    />
+                  </div>
+                ) : (
+                  <div 
+                    className="tech-input bg-canvas/20 border border-hairline p-3 overflow-y-auto markdown-body text-xs rounded-[2px]"
+                    style={{ minHeight: '166px', maxHeight: '250px' }}
+                  >
+                    {learnContent.trim() ? (
+                      <ReactMarkdown components={markdownComponents}>{learnContent}</ReactMarkdown>
+                    ) : (
+                      <span className="text-mute italic">Nothing to preview yet. Start typing in the 'Write' tab!</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Flexible Graph Connections selector */}
@@ -234,29 +394,36 @@ export const NodeForm: React.FC<NodeFormProps> = ({
                   {eligibleNodes.length === 0 ? (
                     <span className="text-xs text-mute p-2 text-center">No other eligible nodes found</span>
                   ) : (
-                    eligibleNodes.map(node => (
-                      <label
-                        key={node.id}
-                        className="flex items-center gap-2 px-2 py-1 hover:bg-surface-elevated rounded-[2px] cursor-pointer text-sm"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={connectedNodeIds.includes(node.id)}
-                          onChange={() => toggleConnectedNode(node.id)}
-                          className="accent-brand rounded-[2px]"
-                        />
-                        <span className="flex-1 text-xs truncate">
-                          {node.name}
-                        </span>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded-[2px] font-bold uppercase ${
-                          node.type === 'category' 
-                            ? 'bg-brand/10 text-brand border border-brand/20' 
-                            : 'bg-white/10 text-white border border-white/20'
-                        }`}>
-                          {node.type}
-                        </span>
-                      </label>
-                    ))
+                    eligibleNodes.map(node => {
+                      const color = getCategoryColor(node.categoryName);
+                      return (
+                        <label
+                          key={node.id}
+                          className="flex items-center gap-2 px-2 py-1 hover:bg-surface-elevated rounded-[2px] cursor-pointer text-sm transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={connectedNodeIds.includes(node.id)}
+                            onChange={() => toggleConnectedNode(node.id)}
+                            className="rounded-[2px]"
+                            style={{ accentColor: color }}
+                          />
+                          <span className="flex-1 text-xs truncate" style={{ color: node.type === 'category' ? color : undefined }}>
+                            {node.name}
+                          </span>
+                          <span 
+                            className="text-[9px] px-1.5 py-0.5 rounded-[2px] font-bold uppercase border"
+                            style={{
+                              backgroundColor: `${color}15`,
+                              borderColor: `${color}35`,
+                              color: color
+                            }}
+                          >
+                            {node.type}
+                          </span>
+                        </label>
+                      );
+                    })
                   )}
                 </div>
               </div>

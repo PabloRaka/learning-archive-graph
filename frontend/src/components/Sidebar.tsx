@@ -4,6 +4,8 @@ import {
   Tag, BookOpen, Calendar, Trash2, Edit2, X, Link as LinkIcon, Plus, Maximize2
 } from 'lucide-react';
 import type { Category, LearningEntry, GraphNode, GraphLink } from '../types';
+import { getCategoryColor } from '../colors';
+import hljs from 'highlight.js';
 
 interface SidebarProps {
   selectedNode: GraphNode | null;
@@ -18,6 +20,22 @@ interface SidebarProps {
   onAddConnection: (sourceId: string, targetId: string) => void;
   onRemoveConnection: (sourceId: string, targetId: string) => void;
 }
+
+const markdownComponents = {
+  code({ children, className, ...rest }: React.ComponentPropsWithoutRef<'code'>) {
+    const match = /language-(\w+)/.exec(className || '');
+    const codeString = String(children).replace(/\n$/, '');
+    if (match) {
+      try {
+        const highlighted = hljs.highlight(codeString, { language: match[1] }).value;
+        return <code className={`${className} hljs`} dangerouslySetInnerHTML={{ __html: highlighted }} />;
+      } catch {
+        // Fallback
+      }
+    }
+    return <code className={className} {...rest}>{children}</code>;
+  }
+};
 
 export const Sidebar: React.FC<SidebarProps> = ({
   selectedNode,
@@ -63,6 +81,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const categoryData = isCategory ? categories.find(c => c.id === selectedNode.id) : null;
   const learningData = !isCategory ? learnings.find(l => l.id === selectedNode.id) : null;
 
+  const nodeCategoryName = isCategory ? selectedNode.name : selectedNode.category_name;
+  const nodeColor = getCategoryColor(nodeCategoryName);
+
   const nodeConnections = links.filter(l => {
     const srcId = typeof l.source === 'object' ? l.source.id : l.source;
     const tgtId = typeof l.target === 'object' ? l.target.id : l.target;
@@ -74,10 +95,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const tgtId = typeof c.target === 'object' ? c.target.id : c.target;
     const neighborId = srcId === selectedNode.id ? tgtId : srcId;
     const cat = categories.find(cat => cat.id === neighborId);
-    if (cat) return { id: cat.id, name: cat.name, type: 'category' as const, linkType: c.type };
+    if (cat) return { id: cat.id, name: cat.name, type: 'category' as const, linkType: c.type, categoryName: cat.name };
     const learn = learnings.find(l => l.id === neighborId);
-    if (learn) return { id: learn.id, name: learn.title, type: 'entry' as const, linkType: c.type };
-    return { id: neighborId, name: 'Unknown Node', type: 'entry' as const, linkType: c.type };
+    if (learn) {
+      const parentCat = categories.find(cat => cat.id === learn.primary_category_id);
+      return { 
+        id: learn.id, 
+        name: learn.title, 
+        type: 'entry' as const, 
+        linkType: c.type, 
+        categoryName: parentCat ? parentCat.name : 'Unknown' 
+      };
+    }
+    return { id: neighborId, name: 'Unknown Node', type: 'entry' as const, linkType: c.type, categoryName: 'Unknown' };
   });
 
   const connectedIds = connectedNodes.map(n => n.id);
@@ -117,11 +147,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Header */}
           <div className="flex items-center justify-between">
             <span
-              className="text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-widest"
+              className="text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-widest border"
               style={{
-                background: isCategory ? 'rgba(118,185,0,0.15)' : 'rgba(96,165,250,0.15)',
-                color: isCategory ? '#a3e635' : '#93c5fd',
-                border: isCategory ? '1px solid rgba(118,185,0,0.3)' : '1px solid rgba(96,165,250,0.3)',
+                background: `${nodeColor}15`,
+                color: nodeColor,
+                borderColor: `${nodeColor}30`,
               }}
             >
               {selectedNode.type}
@@ -151,7 +181,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {learningData.primary_category_id && (
                   <div
                     onClick={() => onSelectNodeById(learningData.primary_category_id)}
-                    className="flex items-center gap-1.5 text-brand cursor-pointer hover:underline"
+                    className="flex items-center gap-1.5 cursor-pointer hover:underline"
+                    style={{ color: nodeColor }}
                   >
                     <Tag className="h-3.5 w-3.5" /> Category: {selectedNode.category_name}
                   </div>
@@ -181,7 +212,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </button>
               </div>
               <div className="markdown-body max-h-64 overflow-y-auto pr-1">
-                <ReactMarkdown>{learningData.content}</ReactMarkdown>
+                <ReactMarkdown components={markdownComponents}>{learningData.content}</ReactMarkdown>
               </div>
             </div>
           )}
@@ -256,43 +287,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   No connections in graph
                 </span>
               ) : (
-                connectedNodes.map(node => (
-                  <div
-                    key={node.id}
-                    className="group flex items-center gap-1 pl-2 pr-1.5 py-1 text-xs transition-all rounded-md cursor-pointer"
-                    style={{
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                    }}
-                  >
-                    <button
-                      onClick={() => onSelectNodeById(node.id)}
-                      className="flex items-center gap-1 cursor-pointer font-medium text-left truncate max-w-[180px] transition-colors"
-                      style={{ color: 'rgba(255,255,255,0.75)' }}
-                      onMouseEnter={e => (e.currentTarget.style.color = '#a3e635')}
-                      onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.75)')}
-                    >
-                      {node.type === 'category' ? <Tag className="h-3 w-3 shrink-0" /> : <BookOpen className="h-3 w-3 shrink-0" />}
-                      <span className="truncate">{node.name}</span>
-                    </button>
-                    <button
-                      onClick={() => onRemoveConnection(selectedNode.id, node.id)}
-                      className="ml-1 p-0.5 rounded transition-all cursor-pointer opacity-0 group-hover:opacity-100"
-                      style={{ color: 'rgba(255,255,255,0.3)' }}
-                      onMouseEnter={e => {
-                        (e.currentTarget as HTMLElement).style.color = '#f87171';
-                        (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.1)';
+                connectedNodes.map(node => {
+                  const connColor = getCategoryColor(node.categoryName);
+                  return (
+                    <div
+                      key={node.id}
+                      className="group flex items-center gap-1 pl-2 pr-1.5 py-1 text-xs transition-all rounded-md cursor-pointer animate-in fade-in duration-100"
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: `1px solid ${connColor}25`,
                       }}
-                      onMouseLeave={e => {
-                        (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.3)';
-                        (e.currentTarget as HTMLElement).style.background = 'transparent';
-                      }}
-                      title="Remove connection"
                     >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))
+                      <button
+                        onClick={() => onSelectNodeById(node.id)}
+                        className="flex items-center gap-1 cursor-pointer font-medium text-left truncate max-w-[180px] transition-colors"
+                        style={{ color: 'rgba(255,255,255,0.75)' }}
+                        onMouseEnter={e => (e.currentTarget.style.color = connColor)}
+                        onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.75)')}
+                      >
+                        {node.type === 'category' ? (
+                          <Tag className="h-3 w-3 shrink-0" style={{ color: connColor }} />
+                        ) : (
+                          <BookOpen className="h-3 w-3 shrink-0" style={{ color: connColor }} />
+                        )}
+                        <span className="truncate">{node.name}</span>
+                      </button>
+                      <button
+                        onClick={() => onRemoveConnection(selectedNode.id, node.id)}
+                        className="ml-1 p-0.5 rounded transition-all cursor-pointer opacity-0 group-hover:opacity-100"
+                        style={{ color: 'rgba(255,255,255,0.3)' }}
+                        onMouseEnter={e => {
+                          (e.currentTarget as HTMLElement).style.color = '#f87171';
+                          (e.currentTarget as HTMLElement).style.background = 'rgba(248,113,113,0.1)';
+                        }}
+                        onMouseLeave={e => {
+                          (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.3)';
+                          (e.currentTarget as HTMLElement).style.background = 'transparent';
+                        }}
+                        title="Remove connection"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>
@@ -409,7 +447,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Modal Content */}
             <div className="flex-1 overflow-y-auto p-8 markdown-body text-zinc-200">
-              <ReactMarkdown>{learningData.content}</ReactMarkdown>
+              <ReactMarkdown components={markdownComponents}>{learningData.content}</ReactMarkdown>
             </div>
           </div>
         </div>

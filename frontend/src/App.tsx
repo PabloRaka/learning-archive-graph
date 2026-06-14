@@ -413,6 +413,7 @@ function App() {
           type={showForm}
           categories={categories}
           learnings={learnings}
+          connections={connections}
           editingEntry={editingEntry}
           onCancel={() => {
             setShowForm(null);
